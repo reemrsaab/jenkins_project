@@ -1,0 +1,67 @@
+def runPython(String arguments) {
+    if (isUnix()) {
+        sh "venv/bin/python ${arguments}"
+    } else {
+        bat "venv\\Scripts\\python.exe ${arguments}"
+    }
+}
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh 'python3 -m venv venv'
+                    } else {
+                        bat 'python -m venv venv'
+                    }
+                    runPython '-m pip install -r requirements.txt'
+                }
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                runPython '-m flake8 app.py deploy.py tests'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                runPython '-m pytest -q tests'
+            }
+        }
+
+        stage('Coverage') {
+            steps {
+                runPython '-m coverage run --source=app -m pytest -q tests'
+                runPython '-m coverage report -m --fail-under=90'
+                runPython '-m coverage xml -o coverage.xml'
+                archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: false
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                runPython '-m bandit app.py deploy.py'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                runPython 'deploy.py --destination deployment'
+                runPython 'deployment/app.py'
+                archiveArtifacts artifacts: 'deployment/app.py', allowEmptyArchive: false
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
