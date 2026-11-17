@@ -14,7 +14,9 @@ def deploy(destination):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Deploy the Python app locally")
+    parser = argparse.ArgumentParser(
+        description="Deploy the Python app locally"
+    )
     parser.add_argument("--destination", default="deployment")
     args = parser.parse_args()
     deploy(args.destination)
